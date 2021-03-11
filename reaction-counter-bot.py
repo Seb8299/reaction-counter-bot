@@ -9,7 +9,7 @@ client = commands.Bot(command_prefix="/", hello_command=None)
 async def reaction_counter(ctx, arg1):
         
     channel = client.get_channel(730839966472601622)
-    messages = await ctx.channel.history().flatten()
+    messages = await ctx.channel.history(limit=5000).flatten()
 
     users = []
     counter = []
