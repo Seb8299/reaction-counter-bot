@@ -22,11 +22,11 @@ async def on_ready():
         cur.execute('''CREATE TABLE reactions
                     (emoji text, name text, count integer, channel text)''')
 
+        con.commit()
+        
         print("db created")
     else:
         con = sqlite3.connect('bot.db')
-
-        # con.close()
 
 @client.command(name="migrate")
 async def reaction_counter(ctx):
@@ -39,8 +39,8 @@ async def reaction_counter(ctx):
     if (cur.fetchone() != None):
         cur.execute('DELETE FROM reactions WHERE channel = {0}'.format(str(ctx.channel.id)))
 
-    channel = client.get_channel(730839966472601622)
-    messages = await ctx.channel.history(limit=10000).flatten()
+    channel = client.get_channel(ctx.message.channel.id)
+    messages = await ctx.channel.history(limit=None).flatten()
 
     dataset = []
     
@@ -65,9 +65,10 @@ async def reaction_counter(ctx):
     cur.execute('SELECT * FROM reactions')
 
     embed=discord.Embed(title="Migration complite ✅")
-   
-    await ctx.send(embed=embed)
     
+    await ctx.send(embed=embed)
+
+    con.commit()
 
 @client.command(name="peek", aliases=["p"])
 async def reaction_counter(ctx, arg1):
@@ -82,9 +83,10 @@ async def reaction_counter(ctx, arg1):
     for i in cur.fetchall():
         user = await client.fetch_user(int(i[1]))
         embed.add_field(name=user.name, value=i[2], inline=True)
-        
+    
     await ctx.send(embed=embed)
 
+    con.commit()
 
 @client.event
 async def on_raw_reaction_add(payload):
@@ -100,7 +102,7 @@ async def on_raw_reaction_add(payload):
     else:
         cur.execute('INSERT INTO reactions VALUES ("{0}", "{1}", {2}, "{3}")'.format(str(payload.emoji), str(payload.user_id), 1, str(payload.channel_id)))
 
-    # con.close()
+    con.commit()
 
 @client.event
 async def on_raw_reaction_remove(payload):
@@ -116,7 +118,7 @@ async def on_raw_reaction_remove(payload):
     else:
         cur.execute('DELETE FROM reactions WHERE emoji = "{0}" AND name = "{1}" AND channel = "{2}"'.format(str(payload.emoji), str(payload.user_id), str(payload.channel_id)))
 
-    # con.close()
+    con.commit()
 
 @client.event
 async def on_reaction_clear(message, reactions):
@@ -134,6 +136,7 @@ async def on_reaction_clear(message, reactions):
             else:
                 cur.execute('DELETE FROM reactions WHERE emoji = "{0}" AND name = "{1}" AND channel = "{2}"'.format(str(reaction.emoji), str(user.id), str(reaction.channel_id)))
 
+    con.commit()
 
 @client.event
 async def on_message_delete(message):
@@ -153,6 +156,8 @@ async def on_message_delete(message):
     #             cur.execute('DELETE FROM reactions WHERE emoji = "{0}" AND name = "{1}" AND channel = "{2}"'.format(str(reaction.emoji), str(user.id), str(reaction.channel_id)))
     
     # print("done")
+    
+    # con.commit()
 
 # handle discord token
 config_file = open("config.json", "r").read()
