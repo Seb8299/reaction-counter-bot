@@ -119,45 +119,6 @@ async def on_raw_reaction_remove(payload):
 
     con.commit()
 
-@client.event
-async def on_reaction_clear(message, reactions):
-    global con
-
-    cur = con.cursor()
-
-    for reaction in message.reactions:
-        async for user in reaction.users():
-            cur.execute('SELECT count FROM reactions WHERE emoji = "{0}" AND name = "{1}" AND channel = "{2}"'.format(str(reaction.emoji), str(user.id), str(reaction.channel_id)))
-            
-            count = cur.fetchone()
-            if (count[0] > 0):
-                cur.execute('UPDATE reactions SET count = count - 1 WHERE emoji = "{0}" AND name = "{1}" AND channel = "{2}"'.format(str(reaction.emoji), str(user.id), str(reaction.channel_id)))
-            else:
-                cur.execute('DELETE FROM reactions WHERE emoji = "{0}" AND name = "{1}" AND channel = "{2}"'.format(str(reaction.emoji), str(user.id), str(reaction.channel_id)))
-
-    con.commit()
-
-@client.event
-async def on_message_delete(message):
-    pass
-    # global con
-
-    # cur = con.cursor()
-
-    # for reaction in message.reactions:
-    #     async for user in reaction.users():
-    #         cur.execute('SELECT count FROM reactions WHERE emoji = "{0}" AND name = "{1}" AND channel = "{2}"'.format(str(reaction.emoji), str(user.id), str(reaction.channel_id)))
-            
-    #         count = cur.fetchone()
-    #         if (count[0] > 0):
-    #             cur.execute('UPDATE reactions SET count = count - 1 WHERE emoji = "{0}" AND name = "{1}" AND channel = "{2}"'.format(str(reaction.emoji), str(user.id), str(reaction.channel_id)))
-    #         else:
-    #             cur.execute('DELETE FROM reactions WHERE emoji = "{0}" AND name = "{1}" AND channel = "{2}"'.format(str(reaction.emoji), str(user.id), str(reaction.channel_id)))
-    
-    # print("done")
-    
-    # con.commit()
-
 # handle discord token
 config_file = open("config.json", "r").read()
 config = json.loads(config_file)
