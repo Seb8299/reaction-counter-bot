@@ -75,7 +75,7 @@ async def reaction_counter(ctx, arg1):
 
     cur = con.cursor()
 
-    cur.execute('SELECT * FROM reactions WHERE emoji = "{0}" AND channel = "{1}"'.format(str(arg1), str(ctx.channel.id)))
+    cur.execute('SELECT * FROM reactions WHERE emoji = "{0}" AND channel = "{1}" ORDER BY count DESC'.format(str(arg1), str(ctx.channel.id)))
     
     embed=discord.Embed(title="Mr. Corn found reactions", description="These Clients have reacted with {0}".format(arg1))
 
