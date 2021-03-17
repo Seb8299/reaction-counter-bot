@@ -40,7 +40,7 @@ async def reaction_counter(ctx):
         cur.execute('DELETE FROM reactions WHERE channel = {0}'.format(str(ctx.channel.id)))
 
     channel = client.get_channel(730839966472601622)
-    messages = await ctx.channel.history(limit=5000).flatten()
+    messages = await ctx.channel.history(limit=10000).flatten()
 
     dataset = []
     
