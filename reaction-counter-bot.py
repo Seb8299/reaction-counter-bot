@@ -1,10 +1,9 @@
 import discord
+import sqlite3
 import json
 from os.path import isfile
-    
-import sqlite3
-
 from discord.ext import commands
+
 client = commands.Bot(command_prefix="/", hello_command=None)
 
 con = None
@@ -20,7 +19,7 @@ async def on_ready():
 
         # Create table
         cur.execute('''CREATE TABLE reactions
-                    (emoji text, name text, count integer, channel text)''')
+                    (emoji text, name text, channel text, count integer)''')
 
         con.commit()
         
@@ -53,12 +52,12 @@ async def reaction_counter(ctx):
                 # durchsuche die liste ob reaction schonmal gesehen
                 for i in range(len(dataset)):
                     if (reaction.emoji == dataset[i][0] and str(user.id) == dataset[i][1]):
-                        dataset[i][2] += 1
+                        dataset[i][3] += 1
                         flag = True
                         break
 
                 if (not flag):
-                    dataset.append([str(reaction.emoji), str(user.id), 1, str(ctx.channel.id)])
+                    dataset.append([str(reaction.emoji), str(user.id), str(ctx.channel.id), 1])
 
     cur.executemany('INSERT INTO reactions VALUES (?,?,?,?)', dataset)
 
@@ -82,7 +81,7 @@ async def reaction_counter(ctx, arg1):
 
     for i in cur.fetchall():
         user = await client.fetch_user(int(i[1]))
-        embed.add_field(name=user.name, value=i[2], inline=True)
+        embed.add_field(name=user.name, value=i[3], inline=True)
     
     await ctx.send(embed=embed)
 
