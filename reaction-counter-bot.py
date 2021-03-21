@@ -63,7 +63,7 @@ async def reaction_counter(ctx):
 
     cur.execute('SELECT * FROM reactions')
 
-    embed=discord.Embed(title="Migration complite ✅")
+    embed=discord.Embed(title="Migration complete ✅")
     
     await ctx.send(embed=embed)
 
