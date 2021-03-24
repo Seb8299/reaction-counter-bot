@@ -131,9 +131,9 @@ async def on_reaction_clear(message, reactions):
 
     con.commit()
 
-@client.event
-async def on_message_delete(message):
-    pass
+# @client.event
+# async def on_message_delete(message):
+#     pass
     # global con
 
     # cur = con.cursor()
