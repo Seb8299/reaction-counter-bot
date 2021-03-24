@@ -18,7 +18,7 @@ async def on_ready():
     con = sqlite3.connect('bot.db')
     cur = con.cursor()
 
-    time.sleep(3)
+    time.sleep(1)
 
     # Create table
     cur.execute('''CREATE TABLE IF NOT EXISTS reactions
@@ -72,21 +72,11 @@ async def reaction_counter(ctx, arg1):
     global con
     global cur
 
-    cur.execute("SELECT * FROM reactions")
-    for i in cur.fetchall():
-        print(i)
-    
-    print(" ")
-
-    print(arg1)
-    print(ctx.channel.id)
-
     cur.execute('SELECT * FROM reactions WHERE emoji = "{0}" AND channel = "{1}" ORDER BY count DESC'.format(str(arg1), str(ctx.channel.id)))
     
     embed=discord.Embed(title="Mr. Corn found reactions", description="These Clients have reacted with {0}".format(arg1))
-    
+
     for i in cur.fetchall():
-        print(i)
         user = await client.fetch_user(int(i[1]))
         embed.add_field(name=user.name, value=i[2], inline=True)
     
