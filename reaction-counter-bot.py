@@ -3,6 +3,7 @@ import sqlite3
 import json
 from os.path import isfile
 from discord.ext import commands
+import time
 
 client = commands.Bot(command_prefix="/", hello_command=None)
 
@@ -17,11 +18,13 @@ async def on_ready():
     con = sqlite3.connect('bot.db')
     cur = con.cursor()
 
+    time.sleep(3)
+
     # Create table
     cur.execute('''CREATE TABLE IF NOT EXISTS reactions
                 (emoji text, name text, count integer, channel text)''')
 
-    con.commit()
+    print("success")
 
 @client.command(name="migrate")
 async def reaction_counter(ctx):
@@ -47,12 +50,12 @@ async def reaction_counter(ctx):
                 # durchsuche die liste ob reaction schonmal gesehen
                 for i in range(len(dataset)):
                     if (reaction.emoji == dataset[i][0] and str(user.id) == dataset[i][1]):
-                        dataset[i][3] += 1
+                        dataset[i][2] += 1
                         flag = True
                         break
 
                 if (not flag):
-                    dataset.append([str(reaction.emoji), str(user.id), str(ctx.channel.id), 1])
+                    dataset.append([str(reaction.emoji), str(user.id), 1, str(ctx.channel.id)])
 
     cur.executemany('INSERT INTO reactions VALUES (?,?,?,?)', dataset)
 
@@ -69,13 +72,23 @@ async def reaction_counter(ctx, arg1):
     global con
     global cur
 
+    cur.execute("SELECT * FROM reactions")
+    for i in cur.fetchall():
+        print(i)
+    
+    print(" ")
+
+    print(arg1)
+    print(ctx.channel.id)
+
     cur.execute('SELECT * FROM reactions WHERE emoji = "{0}" AND channel = "{1}" ORDER BY count DESC'.format(str(arg1), str(ctx.channel.id)))
     
     embed=discord.Embed(title="Mr. Corn found reactions", description="These Clients have reacted with {0}".format(arg1))
-
+    
     for i in cur.fetchall():
+        print(i)
         user = await client.fetch_user(int(i[1]))
-        embed.add_field(name=user.name, value=i[3], inline=True)
+        embed.add_field(name=user.name, value=i[2], inline=True)
     
     await ctx.send(embed=embed)
 
@@ -87,8 +100,8 @@ async def on_raw_reaction_add(payload):
     global cur
 
     cur.execute('SELECT * FROM reactions WHERE emoji = "{0}" AND name = "{1}" AND channel = "{2}"'.format(str(payload.emoji), str(payload.user_id), str(payload.channel_id)))
-    
     dataset = cur.fetchone()
+
     if (dataset != None):
         cur.execute('UPDATE reactions SET count = count + 1 WHERE emoji = "{0}" AND name = "{1}" AND channel = "{2}"'.format(str(payload.emoji), str(payload.user_id), str(payload.channel_id)))
     else:
