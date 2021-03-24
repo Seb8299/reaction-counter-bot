@@ -8,31 +8,26 @@ from discord.ext import commands
 client = commands.Bot(command_prefix="/", hello_command=None)
 
 con = None
+cur = None
 
 @client.event
 async def on_ready():
     global con
+    global cur
 
-    if (not isfile("bot.db")):
-        con = sqlite3.connect('bot.db')
+    con = sqlite3.connect('bot.db')
+    cur = con.cursor()
 
-        cur = con.cursor()
+    # Create table
+    cur.execute('''CREATE TABLE IF NOT EXISTS reactions
+                (emoji text, name text, count integer, channel text)''')
 
-        # Create table
-        cur.execute('''CREATE TABLE reactions
-                    (emoji text, name text, count integer, channel text)''')
-
-        print("db created")
-    else:
-        con = sqlite3.connect('bot.db')
-
-        # con.close()
+    # con.close()
 
 @client.command(name="migrate")
 async def reaction_counter(ctx):
     global con
-
-    cur = con.cursor()
+    global cur
 
     cur.execute('SELECT channel FROM reactions WHERE channel = {0}'.format(str(ctx.channel.id)))
 
@@ -64,7 +59,7 @@ async def reaction_counter(ctx):
 
     cur.execute('SELECT * FROM reactions')
 
-    embed=discord.Embed(title="Migration complite ✅")
+    embed=discord.Embed(title="Migration complete ✅")
    
     await ctx.send(embed=embed)
     
@@ -72,8 +67,7 @@ async def reaction_counter(ctx):
 @client.command(name="peek", aliases=["p"])
 async def reaction_counter(ctx, arg1):
     global con
-
-    cur = con.cursor()
+    global cur
 
     cur.execute('SELECT * FROM reactions WHERE emoji = "{0}" AND channel = "{1}" ORDER BY count DESC'.format(str(arg1), str(ctx.channel.id)))
     
@@ -89,8 +83,7 @@ async def reaction_counter(ctx, arg1):
 @client.event
 async def on_raw_reaction_add(payload):
     global con
-
-    cur = con.cursor()
+    global cur
 
     cur.execute('SELECT * FROM reactions WHERE emoji = "{0}" AND name = "{1}" AND channel = "{2}"'.format(str(payload.emoji), str(payload.user_id), str(payload.channel_id)))
     
@@ -105,8 +98,7 @@ async def on_raw_reaction_add(payload):
 @client.event
 async def on_raw_reaction_remove(payload):
     global con
-
-    cur = con.cursor()
+    global cur
 
     cur.execute('SELECT count FROM reactions WHERE emoji = "{0}" AND name = "{1}" AND channel = "{2}"'.format(str(payload.emoji), str(payload.user_id), str(payload.channel_id)))
     
@@ -121,8 +113,7 @@ async def on_raw_reaction_remove(payload):
 @client.event
 async def on_reaction_clear(message, reactions):
     global con
-
-    cur = con.cursor()
+    global cur
 
     for reaction in message.reactions:
         async for user in reaction.users():
