@@ -31,8 +31,12 @@ client = commands.Bot(command_prefix="/", hello_command=None)
 con = None
 cur = None
 
-LIMIT = 20
-lock = asyncio.Lock()
+LIMIT = 200
+lock_progress = asyncio.Lock()
+lock_list = asyncio.Lock()
+
+prog = 0
+max_progress = 0
 
 global_dataset = []
 
@@ -50,7 +54,7 @@ async def on_ready():
     cur.execute('''CREATE TABLE IF NOT EXISTS reactions
                 (emoji text, name text, count integer, channel text)''')
 
-    print("success")
+    print("setup finished")
 
 def progress(count, total):
     bar_len = 60
@@ -68,6 +72,7 @@ async def reaction_counter(ctx):
     global con
     global cur
     global global_dataset
+    global max_progress
 
     global_dataset = []
 
@@ -77,10 +82,6 @@ async def reaction_counter(ctx):
         cur.execute('DELETE FROM reactions WHERE channel = {0}'.format(str(ctx.channel.id)))
 
     channel = client.get_channel(ctx.message.channel.id)
-    messages = await ctx.channel.history(limit=None).flatten()
-
-    print(f"Number of messages: {len(messages)}")
-
 
     tasks = []
     t = 0
@@ -88,6 +89,8 @@ async def reaction_counter(ctx):
     # create threads
     async for message in ctx.channel.history(limit=None).chunk(LIMIT):
         t += 1
+
+        max_progress += LIMIT
 
         _task = asyncio.get_event_loop().create_task(migrate_chunk(message, ctx))
         tasks.append(_task)
@@ -98,10 +101,9 @@ async def reaction_counter(ctx):
     print(f"start tasks: {t}")
 
     for i, task in enumerate(tasks):
-        progress(i, t)
         await task
 
-    progress(t, t)
+    progress(prog, max_progress)
     print()
         
     for g in global_dataset:
@@ -118,6 +120,8 @@ async def reaction_counter(ctx):
 
 async def migrate_chunk(messages, ctx):
     global global_dataset
+    global max_progress
+    global prog
     dataset = []
     
     for msg in messages:
@@ -135,9 +139,17 @@ async def migrate_chunk(messages, ctx):
 
                 if (not flag):
                     dataset.append(DataSet(str(reaction.emoji), str(user.id), str(ctx.channel.id)))
+        
+        await lock_progress.acquire()
+        try:
+            prog += 1
+            progress(prog, max_progress)
+
+        finally:
+            lock_progress.release()
 
 
-    await lock.acquire()
+    await lock_list.acquire()
     try:
         if global_dataset == []:
             global_dataset = dataset
@@ -149,7 +161,7 @@ async def migrate_chunk(messages, ctx):
                     else:
                         global_dataset.append(t)
     finally:
-        lock.release()
+        lock_list.release()
 
 
 @client.command(name="peek", aliases=["p"])
