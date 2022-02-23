@@ -64,7 +64,7 @@ def progress(count, total):
 
 @client.command(name="migrate")
 async def reaction_counter(ctx):
-    print("start migrate")
+    print("start to migrate")
     global con
     global cur
     global global_dataset
@@ -79,15 +79,15 @@ async def reaction_counter(ctx):
     channel = client.get_channel(ctx.message.channel.id)
     messages = await ctx.channel.history(limit=None).flatten()
 
-    print(len(messages))
+    print(f"Number of messages: {len(messages)}")
 
 
     tasks = []
-    i = 0
+    t = 0
 
     # create threads
     async for message in ctx.channel.history(limit=None).chunk(LIMIT):
-        i += 1
+        t += 1
 
         _task = asyncio.get_event_loop().create_task(migrate_chunk(message, ctx))
         tasks.append(_task)
@@ -95,12 +95,14 @@ async def reaction_counter(ctx):
         if len(message) < LIMIT:
             break
 
-    print(f"start tasks: {i}")
+    print(f"start tasks: {t}")
 
-    for task in tasks:
+    for i, task in enumerate(tasks):
+        progress(i, t)
         await task
 
-    print("finished tasks")
+    progress(t, t)
+    print()
         
     for g in global_dataset:
         cur.execute(f'INSERT INTO reactions VALUES ("{g.emoji}", "{g.user_id}", "{g.n}", "{g.channel_id}")')
@@ -118,7 +120,7 @@ async def migrate_chunk(messages, ctx):
     global global_dataset
     dataset = []
     
-    for i, msg in enumerate(messages):
+    for msg in messages:
         for reaction in msg.reactions:
             async for user in reaction.users():
 
