@@ -4,11 +4,37 @@ import json
 from os.path import isfile
 from discord.ext import commands
 import time
+import sys
+import threading
+import asyncio
+
+class DataSet:
+    def __init__(self, emoji, user_id, channel_id):
+        self.emoji = emoji
+        self.user_id = user_id
+        self.channel_id = channel_id
+        self.n = 1
+
+    def incr(self, n=1):
+        self.n += n
+    
+    def equal(self, dataset):
+        return (self.emoji == dataset.emoji 
+            and self.user_id == dataset.user_id )
+            # and self.channel_id == dataset.channel_id)
+
+    def toList(self):
+        return [self.emoji, self.user_id, self.n, self.channel_id]
 
 client = commands.Bot(command_prefix="/", hello_command=None)
 
 con = None
 cur = None
+
+LIMIT = 20
+lock = asyncio.Lock()
+
+global_dataset = []
 
 @client.event
 async def on_ready():
@@ -26,10 +52,24 @@ async def on_ready():
 
     print("success")
 
+def progress(count, total):
+    bar_len = 60
+    filled_len = int(round(bar_len * count / float(total)))
+
+    percents = round(100.0 * count / float(total), 1)
+    bar = '=' * filled_len + '-' * (bar_len - filled_len)
+
+    sys.stdout.write('[%s] %s%s \r' % (bar, percents, '%'))
+    sys.stdout.flush() 
+
 @client.command(name="migrate")
 async def reaction_counter(ctx):
+    print("start migrate")
     global con
     global cur
+    global global_dataset
+
+    global_dataset = []
 
     cur.execute('SELECT channel FROM reactions WHERE channel = {0}'.format(str(ctx.channel.id)))
 
@@ -39,9 +79,46 @@ async def reaction_counter(ctx):
     channel = client.get_channel(ctx.message.channel.id)
     messages = await ctx.channel.history(limit=None).flatten()
 
+    print(len(messages))
+
+
+    tasks = []
+    i = 0
+
+    # create threads
+    async for message in ctx.channel.history(limit=None).chunk(LIMIT):
+        i += 1
+
+        _task = asyncio.get_event_loop().create_task(migrate_chunk(message, ctx))
+        tasks.append(_task)
+
+        if len(message) < LIMIT:
+            break
+
+    print(f"start tasks: {i}")
+
+    for task in tasks:
+        await task
+
+    print("finished tasks")
+        
+    for g in global_dataset:
+        cur.execute(f'INSERT INTO reactions VALUES ("{g.emoji}", "{g.user_id}", "{g.n}", "{g.channel_id}")')
+
+
+    # cur.execute('SELECT * FROM reactions')
+
+    embed=discord.Embed(title="Migration complete ✅")
+    
+    await ctx.send(embed=embed)
+
+    con.commit()
+
+async def migrate_chunk(messages, ctx):
+    global global_dataset
     dataset = []
     
-    for msg in messages:
+    for i, msg in enumerate(messages):
         for reaction in msg.reactions:
             async for user in reaction.users():
 
@@ -49,23 +126,29 @@ async def reaction_counter(ctx):
 
                 # durchsuche die liste ob reaction schonmal gesehen
                 for i in range(len(dataset)):
-                    if (reaction.emoji == dataset[i][0] and str(user.id) == dataset[i][1]):
-                        dataset[i][2] += 1
+                    if (reaction.emoji == dataset[i].emoji and str(user.id) == dataset[i].user_id):
+                        dataset[i].incr()
                         flag = True
                         break
 
                 if (not flag):
-                    dataset.append([str(reaction.emoji), str(user.id), 1, str(ctx.channel.id)])
+                    dataset.append(DataSet(str(reaction.emoji), str(user.id), str(ctx.channel.id)))
 
-    cur.executemany('INSERT INTO reactions VALUES (?,?,?,?)', dataset)
 
-    cur.execute('SELECT * FROM reactions')
+    await lock.acquire()
+    try:
+        if global_dataset == []:
+            global_dataset = dataset
+        else:
+            for t in dataset:
+                for s in global_dataset:
+                    if (s.equal(t)):
+                        s.incr(t.n)
+                    else:
+                        global_dataset.append(t)
+    finally:
+        lock.release()
 
-    embed=discord.Embed(title="Migration complete ✅")
-    
-    await ctx.send(embed=embed)
-
-    con.commit()
 
 @client.command(name="peek", aliases=["p"])
 async def reaction_counter(ctx, arg1):
